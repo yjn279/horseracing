@@ -1,23 +1,11 @@
+import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-# サンプルデータ（3パターン）
-SAMPLES = [
-    # パターン1: 本命（10頭）
-    ([3.5, 5.2, 8.0, 12.0, 15.0, 20.0, 25.0, 30.0, 40.0, 50.0],
-     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
-    
-    # パターン2: 混戦（10頭）
-    ([8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5],
-     [2, 0, 1, 3, 4, 5, 6, 7, 8, 9]),
-    
-    # パターン3: 穴（10頭）
-    ([4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 3.0, 20.0, 25.0],
-     [7, 0, 1, 2, 3, 4, 5, 6, 8, 9]),
-]
 
 class HorseRacingDataset(Dataset):
     """カスタムデータセット"""
+
     def __init__(self, odds, rankings):
         self.odds = odds
         self.rankings = rankings
@@ -29,31 +17,48 @@ class HorseRacingDataset(Dataset):
         return self.odds[idx], self.rankings[idx]
 
 
-def get_datasets(n_repeat=300):
+def get_datasets():
     """データセット準備"""
+    frame = pd.read_csv("data/races.csv")
+    # "place", "odds"列が数値でない行をドロップ
+    frame = frame.loc[pd.to_numeric(frame["place"], errors="coerce").notna()]
+    frame = frame.loc[pd.to_numeric(frame["odds"], errors="coerce").notna()]
+    frame = frame.assign(place=frame["place"].astype(int), odds=frame["odds"].astype(float))
+
+    grouped = frame.groupby("id")
     odds_list = []
     rank_list = []
-    
-    # 各パターンをn_repeat回繰り返し
-    for odds, ranks in SAMPLES:
-        for _ in range(n_repeat):
-            odds_list.append(odds)
-            rank_list.append(ranks)
-    
+    for _, group in grouped:
+        odds = list(group["odds"])
+        # 1-basedの着順を0-basedのインデックスに変換
+        ranks = list(group["place"] - 1)
+        odds_list.append(odds)
+        rank_list.append(ranks)
+
     # Tensorに変換（18頭にパディング）
-    n = len(odds_list)  # n = 900
-    odds_tensor = torch.zeros(n, 18)  # [900, 18]
-    rank_tensor_one_hot = torch.zeros(n, 18, 18)  # [900, 18, 18]
-    
+    n = len(odds_list)
+    odds_tensor = torch.zeros(n, 18)  # [n, 18]
+    rank_tensor_one_hot = torch.zeros(n, 18, 18)  # [n, 18, 18]
+
     for i, (odds, ranks) in enumerate(zip(odds_list, rank_list)):
-        odds_tensor[i, :len(odds)] = torch.tensor(odds)  # [10] → [18] (padded)
+        num_horses = len(odds)
+        odds_tensor[i, :num_horses] = torch.tensor(odds)
+        # horse_numberをインデックスとして使用
+        horse_indices = list(range(num_horses))
+        permuted_ranks = [0] * num_horses
+        for horse_idx, rank in zip(horse_indices, ranks):
+            if rank < num_horses:
+                permuted_ranks[rank] = horse_idx
+
+        # one-hotエンコーディング
         for horse_idx, rank in enumerate(ranks):
-            rank_tensor_one_hot[i, horse_idx, rank] = 1.0  # one-hot
-    
+            if rank < 18:
+                rank_tensor_one_hot[i, horse_idx, rank] = 1.0
+
     # 訓練・検証分割（8:2）
-    split = int(n * 0.8)  # 720
-    
+    split = int(n * 0.8)
+
     train_dataset = HorseRacingDataset(odds_tensor[:split], rank_tensor_one_hot[:split])
     test_dataset = HorseRacingDataset(odds_tensor[split:], rank_tensor_one_hot[split:])
-    
+
     return train_dataset, test_dataset
