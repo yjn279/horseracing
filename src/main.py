@@ -10,6 +10,7 @@ from utils import get_device
 def main():
     # Get device
     device = get_device()
+    print(f"Using device: {device}")
     
     # Get datasets
     train_dataset, test_dataset = get_datasets()
