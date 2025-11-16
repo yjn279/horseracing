@@ -14,7 +14,7 @@ class HorseRacingModel(nn.Module):
         
         input_channels = 1
         hidden_channels = 4
-        kernel_size = (3, 2)
+        kernel_size = (3, 3)
         
         self.layers = nn.Sequential(
             nn.Conv2d(
