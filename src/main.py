@@ -7,6 +7,7 @@ from train import train
 from test import test
 from utils import get_device
 
+
 def main():
     # Get device
     device = get_device()
@@ -29,7 +30,8 @@ def main():
             print(f"Epoch {i + 1}\n-------------------------------")
             train(train_dataloader, model, loss_fn, optimizer, device)
             test(test_dataloader, model, loss_fn, device)
+    
+    print("完了")
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

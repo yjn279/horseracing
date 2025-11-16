@@ -14,13 +14,14 @@ def train(dataloader, model, loss_fn, optimizer, device):
         
         # Compute prediction error
         pred = model(x)
-        loss = loss_fn(pred, y)
+        mask = x.sum(dim=2) > 0 # 出走している馬をマスク
+        loss = loss_fn(pred[mask], y[mask])
 
         # Backpropagation
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-
+        
         if batch % 10 == 0:
             loss, current = loss.item(), (batch + 1) * len(x)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
