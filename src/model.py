@@ -35,7 +35,7 @@ class HorseRacingModel(nn.Module):
             ),  # [batch, 1, 18, 3]
             nn.BatchNorm2d(input_channels),
             nn.ReLU(),
-            nn.Softmax(dim=1),  # 着順ごとに各馬が該当する確率を正規化
+            nn.Softmax(dim=2),  # 着順ごとに各馬が該当する確率を正規化
         )
     
     def forward(self, x):
